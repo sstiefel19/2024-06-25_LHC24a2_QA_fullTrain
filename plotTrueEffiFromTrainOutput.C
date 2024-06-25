@@ -1,12 +1,16 @@
-#include "/analysisSoftware/SupportingMacros/utils_sstiefel_2023.h"
+#include "/analysisSoftware/utils_sstiefel_2024/include/GCo.h"           
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_computational.h" 
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_files_strings.h"
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_fits.h"
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_plotting.h"
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_utils.h"
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_TF1.h"           
+#include "/analysisSoftware/utils_sstiefel_2024/include/utils_TH1.h"
 
 #include <iostream>
 #include <string.h>
 #include <vector>
 
-#include "TROOT.h"
-#include "TSystem.h"
-#include "TFile.h"
 #include "TString.h"
 #include "TH1.h"
 #include "TH2.h"
@@ -47,7 +51,7 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     auto scaleRebinDiv = [nR](TH1 &h, double nEvts, const char *tag){
         h.Scale(1./nEvts);
         h.Rebin(nR);
-        return divideTH1ByBinWidths(h, tag);
+        return utils_TH1::DivideTH1ByBinWidths(h, tag, "", "");
     };
     
     // MB
@@ -78,17 +82,32 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     
     c1->cd(1);
     gPad->SetLogy();
-    TH2* hd1 = new TH2F("hd1",Form("%s: True%sYields (x-proj. of ESD_TruePrimary%s_MCPt_ResolPt);MC pT(GeV);dN/dpT (1/Nevt.)", buildCentString(evtcut).data(), meson.data(), meson.data()),1,0.,10.,1.,1e-6,4e-1);
+    TH2* hd1 = new TH2F("hd1",
+                        Form("%s: True%sYields (x-proj. of ESD_TruePrimary%s_MCPt_ResolPt);MC pT(GeV);dN/dpT (1/Nevt.)", 
+                             utils_files_strings::BuildCentString(evtcut).data(), meson.data(), meson.data()),
+                        1,0.,10.,1.,1e-6,4e-1);
     hd1->Draw();
         std::string tagASMC(cent=="101" ? "LHC24a1a2 AS MC WW" : "LHC24a1b2 AS MC WW");
     
     {
         auto *leg = new TLegend();
-        drawAndAdd(*h1TrueMeson, "same", kBlue, leg, "LHC20e3ab MB MC WW");
-        drawAndAdd(*h1TrueMesonA, "same", kRed, leg, tagASMC);
+        utils_plotting::DrawAndAdd(*h1TrueMeson, 
+                                   "same", 
+                                   kBlue,
+                                   1., 
+                                   leg, 
+                                   "LHC20e3ab MB MC WW",
+                                   "lp");
+        utils_plotting::DrawAndAdd(*h1TrueMeson, 
+                            "same", 
+                            kRed,
+                            1., 
+                            leg, 
+                            tagASMC,
+                            "lp");                                   
         leg->Draw("same");
 
-        auto &lPav = setupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
+        auto &lPav = utils_plotting::SetupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
         lPav.Draw("same");
     }   
     
@@ -96,15 +115,15 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     // gPad->SetLogy();
     TH2* hd2 = new TH2F("hd2",Form("True%sYields / MC_%sInAcc_Pt;MC pT(GeV);trueEffi", meson.data(), meson.data()),1,0.,10.,1.,1e-5,2e-3);
     hd2->Draw();
-    TH1* hMyTrueEffi = divideTH1ByTH1(*h1TrueMeson, *hMesonGenInAcc,"", "hMyTrueEffi","hMyTrueEffi");
-    TH1* hMyTrueEffiA = divideTH1ByTH1(*h1TrueMesonA, *hMesonGenInAccA,"", "hMyTrueEffiA","hMyTrueEffiA");
+    TH1* hMyTrueEffi = utils_TH1::utils_TH1::DivideTH1ByTH1(*h1TrueMeson, *hMesonGenInAcc,"", "hMyTrueEffi","hMyTrueEffi");
+    TH1* hMyTrueEffiA = utils_TH1::utils_TH1::DivideTH1ByTH1(*h1TrueMesonA, *hMesonGenInAccA,"", "hMyTrueEffiA","hMyTrueEffiA");
     
     {
         auto *leg = new TLegend();
-        drawAndAdd(*hMyTrueEffi, "same", kBlue, leg, "LHC20e3ab MB MC WW");
-        drawAndAdd(*hMyTrueEffiA, "same", kRed, leg, tagASMC);
+        utils_plotting::DrawAndAdd(*hMyTrueEffi, "same", kBlue, 1., leg, "LHC20e3ab MB MC WW", "lp");
+        utils_plotting::DrawAndAdd(*hMyTrueEffiA, "same", kRed, 1., leg, tagASMC, "lp");
         leg->Draw("same");
-        auto &lPav = setupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
+        auto &lPav = utils_plotting::SetupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
         lPav.Draw("same");
     }
 
@@ -113,16 +132,19 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     gPad->SetGridy();
     TH2* hd3 = new TH2F("hd3",Form("MC_%sInAcc_Pt (generated %ss in accep.);MC pT(GeV);(pt-weighted) counts (1/Nevt.)", meson.data(), meson.data()),1,0.,10.,1.,1e-2,1e3);
     hd3->Draw();
-    TH1*  hTrueMeson_estimateWOW = cloneTH1(*hMesonWOWGenInAcc_notNorm, nullptr, "hTrueMeson_estimateWOW_notNorm");
+    TH1*  hTrueMeson_estimateWOW = utils_utils::CloneTH1(*hMesonWOWGenInAcc_notNorm, nullptr, "hTrueMeson_estimateWOW_notNorm");
     if (!hTrueMeson_estimateWOW->Multiply(hMyTrueEffiA)) {cout << "\n\n\n MULTIPLICATION FAILED\n\n\n\n";}
     
     {
         auto *leg = new TLegend();
-        drawAndAdd(*hMesonGenInAcc, "same", kBlue, leg, "LHC20e3ab MB MC WW");
-        drawAndAdd(*hMesonGenInAccA, "same", kRed, leg, tagASMC);
-        drawAndAdd(*hTrueMeson_estimateWOW, "same", kBlack, leg, Form("MB MC: est. total number of true %ss wo/ weights.", meson.data()));
+        utils_plotting::DrawAndAdd(*hMesonGenInAcc, "same", kBlue, 1., 
+                                   leg, "LHC20e3ab MB MC WW");
+        utils_plotting::DrawAndAdd(*hMesonGenInAccA, "same", kRed, 1., 
+                                   leg, tagASMC);
+        utils_plotting::DrawAndAdd(*hTrueMeson_estimateWOW, "same", kBlack, 1., 
+                                   leg, Form("MB MC: est. total number of true %ss wo/ weights.", meson.data()));
         leg->Draw("same");
-        auto &lPav = setupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
+        auto &lPav = utils_plotting::SetupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
         lPav.Draw("same");
     }
 
@@ -135,16 +157,16 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
         // TH2* hd21 = new TH2F("hd21",";MC pT(GeV);dN/dpT",1,0.,10.,1.,1e-6,1e4);
         // hd21->Draw();
     
-        // TH1* h1TrueMeson_diff = divideTH1ByBinWidths(*h1TrueMeson);
-        // TH1* hMesonGenInAcc_diff = divideTH1ByBinWidths(*hMesonGenInAcc);
-        // TH1* h1TrueMesonA_diff = divideTH1ByBinWidths(*h1TrueMesonA);
-        // TH1* hMesonGenInAccA_diff = divideTH1ByBinWidths(*hMesonGenInAccA);
-        // TH1* hMesonWOWGenInAccA_diff = divideTH1ByBinWidths(*hMesonWOWGenInAccA);
+        // TH1* h1TrueMeson_diff = utils_TH1::DivideTH1ByBinWidths(*h1TrueMeson);
+        // TH1* hMesonGenInAcc_diff = utils_TH1::DivideTH1ByBinWidths(*hMesonGenInAcc);
+        // TH1* h1TrueMesonA_diff = utils_TH1::DivideTH1ByBinWidths(*h1TrueMesonA);
+        // TH1* hMesonGenInAccA_diff = utils_TH1::DivideTH1ByBinWidths(*hMesonGenInAccA);
+        // TH1* hMesonWOWGenInAccA_diff = utils_TH1::DivideTH1ByBinWidths(*hMesonWOWGenInAccA);
         
         // auto leg = new TLegend();
-        // drawAndAdd(*hMesonGenInAcc_diff, "same", kBlue, leg);
-        // drawAndAdd(*hMesonWOWGenInAccA_diff, "same", kBlack, leg);
-        // drawAndAdd(*hMyTrueEffiA, "same", kRed, leg);
+        // utils_plotting::DrawAndAdd(*hMesonGenInAcc_diff, "same", kBlue, 1., leg);
+        // utils_plotting::DrawAndAdd(*hMesonWOWGenInAccA_diff, "same", kBlack, 1., leg);
+        // utils_plotting::DrawAndAdd(*hMyTrueEffiA, "same", kRed, 1., leg);
         // leg->Draw("same");
         
         //~ hMesonGenInAcc_diff->Draw("same");
@@ -160,17 +182,17 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     //~ gPad->SetLogy();
     TH2* hd4 = new TH2F("hd4",";MC pT(GeV);AS / MB",1,0.,10.,1.,0.5,2.);
     hd4->Draw();
-    TH1* hEffiAoverMB = divideTH1ByTH1(*hMyTrueEffiA, *hMyTrueEffi, "", "hEffiAoverMB");
+    TH1* hEffiAoverMB = utils_TH1::utils_TH1::DivideTH1ByTH1(*hMyTrueEffiA, *hMyTrueEffi, "", "hEffiAoverMB", "hEffiAoverMB");
     hEffiAoverMB->Draw("same");
-    TH1* hGenAoverGenMB = divideTH1ByTH1(*hMesonGenInAccA, *hMesonGenInAcc, "","hGenAoverGenMB");
+    TH1* hGenAoverGenMB = utils_TH1::utils_TH1::DivideTH1ByTH1(*hMesonGenInAccA, *hMesonGenInAcc, "","hGenAoverGenMB", "hGenAoverGenMB");
     
     {
         auto *leg = new TLegend();
-        drawAndAdd(*hEffiAoverMB, "same", kRed, leg, "true meson efficiencies");
-        drawAndAdd(*hGenAoverGenMB, "same", kBlue, leg, Form("MC_%sInAcc_Pt", meson.data()));
+        utils_plotting::DrawAndAdd(*hEffiAoverMB, "same", kRed, 1., leg, "true meson efficiencies");
+        utils_plotting::DrawAndAdd(*hGenAoverGenMB, "same", kBlue, 1., leg, Form("MC_%sInAcc_Pt", meson.data()));
         leg->Draw("same");
 
-        auto &lPav = setupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
+        auto &lPav = utils_plotting::SetupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
         lPav.Draw("same");
     }
     
@@ -189,11 +211,11 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     c1->Write();
     outfile.Close();
     
-    saveCanvasAs(*c1, "png" );
+    utils_plotting::SaveCanvasAs(*c1, "png");
 
 }
 
-void plotTrueEffiFromTrainOutput(std::string meson="Pi0", std::string cent="101"){
+void plotTrueEffiFromTrainOutput(){
         
     bool use997 = false;
     int nR = 2;
