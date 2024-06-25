@@ -20,9 +20,9 @@
 #include "TCanvas.h"
 #include "TEfficiency.h"
 
-void plotTrueEffiFromTrainOutput_(std::string meson="Pi0", 
-                                  std::string cent="101",
-                                  bool use997=false, 
+void plotTrueEffiFromTrainOutput_(std::string meson, 
+                                  std::string cent,
+                                  std::string configA, 
                                   int nR=2,
                                   bool keepFilesOpen=true){
     
@@ -32,13 +32,17 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     std::string restCutNo("_0d200009ab770c00amd0404000_0152101500000000");
     std::string evtcut(cent + "30053");
     std::string evtcutA(cent + "30023");
-    std::string configA( use997 ? "997" : meson=="Pi0" ? "995" : "996");
     
-    // config filenames to use here
+    // set filenames to be used here
     std::string fname(Form("/trains/2023-11-30_mc_ptw_0b/%s/GCo_994.root", 
         (cent=="101") ? "ab" : "ac"));
-    std::string fnameA(Form("/trains/2024-03-26_LHC24a2_ptw_0b/%s/GCo_%s.root", 
-     cent=="101" ? "child_1_010" : "child_2_3050", configA.data()));
+
+    std::string fnameA(
+        Form("/trains/2024-06-25_invPtW_all-AS-MCs/2101_20240624-1718/merge_runlist_1/root_archive/GCo_%s.root", 
+            configA.data()));
+
+    // std::string fnameA(Form("/trains/2024-03-26_LHC24a2_ptw_0b/%s/GCo_%s.root", 
+    //  cent=="101" ? "child_1_010" : "child_2_3050", configA.data()));
     
     // old a1
     //std::string fnameA(Form("/trains/2024-02-26_allMCs_ptw_0b/LHC24a1/%s/GCo_%s.root", 
@@ -188,8 +192,10 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
     
     {
         auto *leg = new TLegend();
-        utils_plotting::DrawAndAdd(*hEffiAoverMB, "same", kRed, 1., leg, "true meson efficiencies");
-        utils_plotting::DrawAndAdd(*hGenAoverGenMB, "same", kBlue, 1., leg, Form("MC_%sInAcc_Pt", meson.data()));
+        utils_plotting::DrawAndAdd(*hEffiAoverMB, "same", kRed, 1., 
+                                   leg, "true meson efficiencies", "lp");
+        utils_plotting::DrawAndAdd(*hGenAoverGenMB, "same", kBlue, 1., 
+                                   leg, Form("MC_%sInAcc_Pt", meson.data()), "lp");
         leg->Draw("same");
 
         auto &lPav = utils_plotting::SetupTPaveTextAndAddOneLine(nameC, 0.5, 0.8, 0.9, 0.9, 0.04);
@@ -217,28 +223,26 @@ void plotTrueEffiFromTrainOutput_(std::string meson="Pi0",
 
 void plotTrueEffiFromTrainOutput(){
         
-    bool use997 = false;
     int nR = 2;
-    //plotTrueEffiFromTrainOutput_("Pi0", "101", use997, nR);
-    //return;
-    
-    for (auto m : std::vector<std::string>({"Pi0", "Eta"})){
+
     //for (auto m : std::vector<std::string>({"Pi0"})){
-        for (auto c : std::vector<std::string>({"101", "135"})){
+    for (auto m : std::vector<std::string>({"Pi0", "Eta"})){
         //for (auto c : std::vector<std::string>({"101"})){
-            if (m=="Pi0"){
-                //for (bool use997 : std::vector<bool>{false, true}){
-                for (bool use997 : std::vector<bool>{false}){
-                     //for (int nR : std::vector<int>{1, 2, 3, 4, 5, 6, 7, 8}){
-                    
-                       plotTrueEffiFromTrainOutput_(m, c, use997, nR); 
-                    //}
-                }
-            }
-            else {
-                plotTrueEffiFromTrainOutput_(m, c, false, nR);
-            }    
+        for (auto c : std::vector<std::string>({"101", "135"})){
+            
+            // select configAs based on cent and meson
+
+            // std::vector<std::string> configAs = (m=="Pi0") 
+            //     ? {"997"}
+            //     : (cent=="101")
+            //         ? {"998"}
+                    // : {"999"};
+            std::string configA = (m=="Pi0") 
+                ? "997"
+                : (c=="101")
+                    ? "998"
+                    : "999";
+            plotTrueEffiFromTrainOutput_(m, c, configA, nR);     
         }
     }
-    
 }
